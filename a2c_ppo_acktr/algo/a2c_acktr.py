@@ -11,6 +11,8 @@ class A2C_ACKTR():
                  value_loss_coef,
                  entropy_coef,
                  lr=None,
+                 lr_beta=None,
+                 reg_beta=None,
                  eps=None,
                  alpha=None,
                  max_grad_norm=None,
@@ -26,20 +28,30 @@ class A2C_ACKTR():
 
         if acktr:
             self.optimizer = KFACOptimizer(actor_critic)
-        else:
-            self.optimizer = optim.RMSprop(
-                actor_critic.parameters(), lr, eps=eps, alpha=alpha)
 
-    def update(self, rollouts):
+        self.beta_value_list = []
+        self.param_list = []
+        for name, param in actor_critic.named_parameters():
+            if "base.beta_value_net" in name :
+                self.beta_value_list.append(param)
+            else:
+                self.param_list.append(param)
+
+        else:
+            self.optimizer = optim.RMSprop([{'params': self.param_list},
+                 {'params': self.beta_value_list, 'lr': lr_beta, 'weight_decay':reg_beta}], lr, eps=eps, alpha=alpha)
+
+    def update(self, rollouts, eval_prev_value):
         obs_shape = rollouts.obs.size()[2:]
         action_shape = rollouts.actions.size()[-1]
         num_steps, num_processes, _ = rollouts.rewards.size()
 
-        values, action_log_probs, dist_entropy, _ = self.actor_critic.evaluate_actions(
-            rollouts.obs[:-1].view(-1, *obs_shape),
-            rollouts.recurrent_hidden_states[0].view(-1, self.actor_critic.recurrent_hidden_state_size),
-            rollouts.masks[:-1].view(-1, 1),
-            rollouts.actions.view(-1, action_shape))
+        values, action_log_probs, dist_entropy, _ , eval_prev_value = self.actor_critic.evaluate_actions(
+            rollouts.obs[:-1],
+            rollouts.recurrent_hidden_states[0],
+            rollouts.masks[:-1],
+            rollouts.actions,
+            eval_prev_value=eval_prev_value)
 
         values = values.view(num_steps, num_processes, 1)
         action_log_probs = action_log_probs.view(num_steps, num_processes, 1)
@@ -68,7 +80,7 @@ class A2C_ACKTR():
 
         self.optimizer.zero_grad()
         (value_loss * self.value_loss_coef + action_loss -
-         dist_entropy * self.entropy_coef).backward()
+         dist_entropy * self.entropy_coef).backward(retain_graph=True)
 
         if self.acktr == False:
             nn.utils.clip_grad_norm_(self.actor_critic.parameters(),
@@ -76,4 +88,4 @@ class A2C_ACKTR():
 
         self.optimizer.step()
 
-        return value_loss.item(), action_loss.item(), dist_entropy.item()
+        return value_loss.item(), action_loss.item(), dist_entropy.item(), eval_prev_value

@@ -66,12 +66,13 @@ def main():
                         args.gamma, args.log_dir, args.add_timestep, device, False)
 
     actor_critic = Policy(envs.observation_space.shape, envs.action_space,
-        base_kwargs={'recurrent': args.recurrent_policy})
+        base_kwargs={'recurrent': args.recurrent_policy, 'est_beta_value':args.est_beta_value})
     actor_critic.to(device)
 
     if args.algo == 'a2c':
         agent = algo.A2C_ACKTR(actor_critic, args.value_loss_coef,
                                args.entropy_coef, lr=args.lr,
+                               lr_beta=args.lr_beta, reg_beta=args.reg_beta,
                                eps=args.eps, alpha=args.alpha,
                                max_grad_norm=args.max_grad_norm)
     elif args.algo == 'ppo':
@@ -94,7 +95,10 @@ def main():
     episode_rewards = deque(maxlen=10)
 
     start = time.time()
+
     for j in range(num_updates):
+        prev_value = None
+        eval_prev_value = None
 
         if args.use_linear_lr_decay:
             # decrease learning rate linearly
@@ -110,10 +114,11 @@ def main():
         for step in range(args.num_steps):
             # Sample actions
             with torch.no_grad():
-                value, action, action_log_prob, recurrent_hidden_states = actor_critic.act(
+                value, action, action_log_prob, recurrent_hidden_states, prev_value = actor_critic.act(
                         rollouts.obs[step],
                         rollouts.recurrent_hidden_states[step],
-                        rollouts.masks[step])
+                        rollouts.masks[step],
+                        prev_value=prev_value)
 
             # Obser reward and next obs
             obs, reward, done, infos = envs.step(action)
@@ -134,7 +139,7 @@ def main():
 
         rollouts.compute_returns(next_value, args.use_gae, args.gamma, args.tau)
 
-        value_loss, action_loss, dist_entropy = agent.update(rollouts)
+        value_loss, action_loss, dist_entropy, eval_prev_value = agent.update(rollouts, eval_prev_value)
 
         rollouts.after_update()
 

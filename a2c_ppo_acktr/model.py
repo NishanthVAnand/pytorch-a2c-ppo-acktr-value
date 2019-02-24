@@ -51,8 +51,8 @@ class Policy(nn.Module):
     def forward(self, inputs, rnn_hxs, masks):
         raise NotImplementedError
 
-    def act(self, inputs, rnn_hxs, masks, deterministic=False):
-        value, actor_features, rnn_hxs = self.base(inputs, rnn_hxs, masks)
+    def act(self, inputs, rnn_hxs, masks, deterministic=False, prev_value=None):
+        value, actor_features, rnn_hxs, beta_value = self.base(inputs, rnn_hxs, masks)
         dist = self.dist(actor_features)
 
         if deterministic:
@@ -63,20 +63,43 @@ class Policy(nn.Module):
         action_log_probs = dist.log_probs(action)
         dist_entropy = dist.entropy().mean()
 
-        return value, action, action_log_probs, rnn_hxs
+        if prev_value is not None:
+            value = beta_value * value + (1 - beta_value) * prev_value
+
+        prev_value = value * masks
+
+        return value, action, action_log_probs, rnn_hxs, prev_value
 
     def get_value(self, inputs, rnn_hxs, masks):
-        value, _, _ = self.base(inputs, rnn_hxs, masks)
+        value, _, _, _ = self.base(inputs, rnn_hxs, masks)
         return value
 
-    def evaluate_actions(self, inputs, rnn_hxs, masks, action):
-        value, actor_features, rnn_hxs = self.base(inputs, rnn_hxs, masks)
-        dist = self.dist(actor_features)
+    def evaluate_actions(self, inputs, rnn_hxs, masks, action, eval_prev_value=None):
+        value_list = []
+        action_log_probs = []
+        dist_entropy = []
 
-        action_log_probs = dist.log_probs(action)
-        dist_entropy = dist.entropy().mean()
+        for i in range(inputs.size()[0]):
+            value, actor_features, _, beta_value = self.base(inputs[i,:,:], rnn_hxs, masks[i,:,:])
+            
+            if eval_prev_value is not None:
+                value = beta_value * value + (1 - beta_value) * eval_prev_value
 
-        return value, action_log_probs, dist_entropy, rnn_hxs
+            value_list.append(value)
+
+            eval_prev_value = value * masks[i,:,:]
+
+            dist = self.dist(actor_features)
+
+            action_log_probs.append(dist.log_probs(action[i,:,:]))
+            dist_entropy.append(dist.entropy())
+
+
+        action_log_probs = torch.stack(action_log_probs)
+        dist_entropy = torch.stack(dist_entropy).mean()
+        v = torch.stack(value_list)
+
+        return v, action_log_probs, dist_entropy, rnn_hxs, eval_prev_value
 
 
 class NNBase(nn.Module):
@@ -171,8 +194,10 @@ class NNBase(nn.Module):
 
 
 class CNNBase(NNBase):
-    def __init__(self, num_inputs, recurrent=False, hidden_size=512):
+    def __init__(self, num_inputs, recurrent=False, hidden_size=512, est_beta_value=False):
         super(CNNBase, self).__init__(recurrent, hidden_size, hidden_size)
+
+        self.est_beta = est_beta_value
 
         init_ = lambda m: init(m,
             nn.init.orthogonal_,
@@ -197,6 +222,8 @@ class CNNBase(NNBase):
 
         self.critic_linear = init_(nn.Linear(hidden_size, 1))
 
+        self.beta_value_net = nn.Sequential(init_(nn.Linear(hidden_size, 1)), nn.Sigmoid())
+
         self.train()
 
     def forward(self, inputs, rnn_hxs, masks):
@@ -205,12 +232,19 @@ class CNNBase(NNBase):
         if self.is_recurrent:
             x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
 
-        return self.critic_linear(x), x, rnn_hxs
+        if self.est_beta_value:
+            beta_value = self.beta_value_net(x)
+        else:
+            beta_value = torch.ones_like(masks)
+
+        return self.critic_linear(x), x, rnn_hxs, beta_value
 
 
 class MLPBase(NNBase):
-    def __init__(self, num_inputs, recurrent=False, hidden_size=64):
+    def __init__(self, num_inputs, recurrent=False, hidden_size=64, est_beta_value=False):
         super(MLPBase, self).__init__(recurrent, num_inputs, hidden_size)
+
+        self.est_beta_value = est_beta_value
 
         if recurrent:
             num_inputs = hidden_size
@@ -234,7 +268,9 @@ class MLPBase(NNBase):
             nn.Tanh()
         )
 
-        self.critic_linear = init_(nn.Linear(hidden_size, 1))
+        self.beta_value_net = init_(nn.Linear(hidden_size, 1))
+
+        self.critic_linear = nn.Sequential(init_(nn.Linear(hidden_size, 1)), nn.Sigmoid())
 
         self.train()
 
@@ -247,4 +283,9 @@ class MLPBase(NNBase):
         hidden_critic = self.critic(x)
         hidden_actor = self.actor(x)
 
-        return self.critic_linear(hidden_critic), hidden_actor, rnn_hxs
+        if self.est_beta_value:
+            beta_value = self.beta_value_net(hidden_critic)
+        else:
+            beta_value = torch.ones_like(masks)
+
+        return self.critic_linear(hidden_critic), hidden_actor, rnn_hxs, beta_value
