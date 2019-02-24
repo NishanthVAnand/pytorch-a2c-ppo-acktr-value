@@ -197,7 +197,7 @@ class CNNBase(NNBase):
     def __init__(self, num_inputs, recurrent=False, hidden_size=512, est_beta_value=False):
         super(CNNBase, self).__init__(recurrent, hidden_size, hidden_size)
 
-        self.est_beta = est_beta_value
+        self.est_beta_value = est_beta_value
 
         init_ = lambda m: init(m,
             nn.init.orthogonal_,
