@@ -128,7 +128,11 @@ def main():
 
             # Obser reward and next obs
             obs, reward, done, infos = envs.step(action)
-            beta_value_list.append(beta_value.numpy())
+
+            if not args.cuda:
+                beta_value_list.append(beta_value.numpy())
+            else:
+                beta_value_list.append(beta_value.cpu().numpy())
 
             for info in infos:
                 if 'episode' in info.keys():
