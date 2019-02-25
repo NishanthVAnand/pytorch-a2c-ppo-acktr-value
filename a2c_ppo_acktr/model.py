@@ -68,7 +68,7 @@ class Policy(nn.Module):
 
         prev_value = value * masks
 
-        return value, action, action_log_probs, rnn_hxs, prev_value
+        return value, action, action_log_probs, rnn_hxs, prev_value, beta_value
 
     def get_value(self, inputs, rnn_hxs, masks):
         value, _, _, _ = self.base(inputs, rnn_hxs, masks)
@@ -268,9 +268,11 @@ class MLPBase(NNBase):
             nn.Tanh()
         )
 
-        self.beta_value_net = init_(nn.Linear(hidden_size, 1))
+        self.beta_value_net = nn.Sequential(init_(nn.Linear(hidden_size, 1)), nn.Sigmoid())
 
-        self.critic_linear = nn.Sequential(init_(nn.Linear(hidden_size, 1)), nn.Sigmoid())
+        self.critic_linear = init_(nn.Linear(hidden_size, 1))
+
+        #self.critic_linear = nn.Sequential(init_(nn.Linear(hidden_size, 1)), nn.Sigmoid())
 
         self.train()
 

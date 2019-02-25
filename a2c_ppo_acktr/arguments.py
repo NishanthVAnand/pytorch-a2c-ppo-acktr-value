@@ -39,7 +39,7 @@ def get_args():
                         help='number of batches for ppo (default: 32)')
     parser.add_argument('--clip-param', type=float, default=0.2,
                         help='ppo clip parameter (default: 0.2)')
-    parser.add_argument('--log-interval', type=int, default=10,
+    parser.add_argument('--log-interval', type=int, default=100,
                         help='log interval, one log per n updates (default: 10)')
     parser.add_argument('--save-interval', type=int, default=100,
                         help='save interval, one save per n updates (default: 100)')
@@ -72,6 +72,7 @@ def get_args():
     parser.add_argument('--est_beta_value', type=int, default=1)
     parser.add_argument('--lr_beta', type=float, default=1e-4)
     parser.add_argument('--reg_beta', type=float, default=0.)
+    parser.add_argument('--disable_log', type=bool, default=False)
     args = parser.parse_args()
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()
