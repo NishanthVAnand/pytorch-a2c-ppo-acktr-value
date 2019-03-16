@@ -29,7 +29,11 @@ if args.recurrent_policy:
     assert args.algo in ['a2c', 'ppo'], \
         'Recurrent policy is not implemented for ACKTR'
 
-experiment = OfflineExperiment(project_name="recurrent-value", workspace="nishanthvanand",disabled=args.disable_log, offline_directory="../comet_offline")
+experiment = OfflineExperiment(project_name="recurrent-value", workspace="nishanthvanand",
+    disabled=args.disable_log, offline_directory="../comet_offline",
+    parse_args=False)
+
+experiment.log_parameters(vars(args))
 
 num_updates = int(args.num_env_steps) // args.num_steps // args.num_processes
 
