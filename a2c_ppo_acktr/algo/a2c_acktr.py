@@ -28,6 +28,8 @@ class A2C_ACKTR():
         self.max_grad_norm = max_grad_norm
         self.reg_beta = reg_beta
 
+        self.delib_center = delib_center
+
         if acktr:
             self.optimizer = KFACOptimizer(actor_critic)
 
