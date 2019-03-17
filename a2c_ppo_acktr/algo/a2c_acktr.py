@@ -13,6 +13,7 @@ class A2C_ACKTR():
                  lr=None,
                  lr_beta=None,
                  reg_beta=None,
+                 delib_center=0.5,
                  eps=None,
                  alpha=None,
                  max_grad_norm=None,
@@ -25,6 +26,7 @@ class A2C_ACKTR():
         self.entropy_coef = entropy_coef
 
         self.max_grad_norm = max_grad_norm
+        self.reg_beta = reg_beta
 
         if acktr:
             self.optimizer = KFACOptimizer(actor_critic)
@@ -39,14 +41,14 @@ class A2C_ACKTR():
 
         else:
             self.optimizer = optim.RMSprop([{'params': self.param_list},
-                 {'params': self.beta_value_list, 'lr': lr_beta, 'weight_decay':reg_beta}], lr, eps=eps, alpha=alpha)
+                 {'params': self.beta_value_list, 'lr': lr_beta}], lr, eps=eps, alpha=alpha)
 
     def update(self, rollouts, eval_prev_value):
         obs_shape = rollouts.obs.size()[2:]
         action_shape = rollouts.actions.size()[-1]
         num_steps, num_processes, _ = rollouts.rewards.size()
 
-        values, action_log_probs, dist_entropy, _ , eval_prev_value = self.actor_critic.evaluate_actions(
+        values, action_log_probs, dist_entropy, _ , eval_prev_value, betas = self.actor_critic.evaluate_actions(
             rollouts.obs[:-1],
             rollouts.recurrent_hidden_states[0],
             rollouts.masks[:-1],
@@ -78,14 +80,20 @@ class A2C_ACKTR():
             fisher_loss.backward(retain_graph=True)
             self.optimizer.acc_stats = False
 
-        self.optimizer.zero_grad()
-        (value_loss * self.value_loss_coef + action_loss -
-         dist_entropy * self.entropy_coef).backward(retain_graph=True)
-
         if self.acktr == False:
             nn.utils.clip_grad_norm_(self.actor_critic.parameters(),
                                      self.max_grad_norm)
 
+        if self.reg_beta > 0:
+            target_beta = torch.zeros_like(betas).fill_(self.delib_center)
+            delib_loss = F.mse_loss(betas, target_beta)
+        else:
+            delib_loss = torch.zeros_like(value_loss)
+
+        self.optimizer.zero_grad()
+        (value_loss * self.value_loss_coef + action_loss -
+         dist_entropy * self.entropy_coef + self.reg_beta * delib_loss).backward(retain_graph=True)
+
         self.optimizer.step()
 
-        return value_loss.item(), action_loss.item(), dist_entropy.item(), eval_prev_value
+        return value_loss.item(), action_loss.item(), dist_entropy.item(), eval_prev_value, delib_loss.item()

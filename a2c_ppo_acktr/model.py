@@ -78,6 +78,7 @@ class Policy(nn.Module):
         value_list = []
         action_log_probs = []
         dist_entropy = []
+        beta_list = []
 
         for i in range(inputs.size()[0]):
             value, actor_features, _, beta_value = self.base(inputs[i,:,:], rnn_hxs, masks[i,:,:])
@@ -85,6 +86,7 @@ class Policy(nn.Module):
             if eval_prev_value is not None:
                 value = beta_value * value + (1 - beta_value) * eval_prev_value
 
+            beta_list.append(beta_value)
             value_list.append(value)
 
             eval_prev_value = value * masks[i,:,:]
@@ -94,12 +96,12 @@ class Policy(nn.Module):
             action_log_probs.append(dist.log_probs(action[i,:,:]))
             dist_entropy.append(dist.entropy())
 
-
         action_log_probs = torch.stack(action_log_probs)
         dist_entropy = torch.stack(dist_entropy).mean()
         v = torch.stack(value_list)
+        beta_torch = torch.stack(beta_list)
 
-        return v, action_log_probs, dist_entropy, rnn_hxs, eval_prev_value
+        return v, action_log_probs, dist_entropy, rnn_hxs, eval_prev_value, beta_torch
 
 
 class NNBase(nn.Module):

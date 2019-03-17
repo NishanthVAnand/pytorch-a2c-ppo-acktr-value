@@ -153,7 +153,7 @@ def main():
 
         rollouts.compute_returns(next_value, args.use_gae, args.gamma, args.tau)
 
-        value_loss, action_loss, dist_entropy, eval_prev_value = agent.update(rollouts, eval_prev_value)
+        value_loss, action_loss, dist_entropy, eval_prev_value, beta_loss = agent.update(rollouts, eval_prev_value)
 
         rollouts.after_update()
 
@@ -193,7 +193,9 @@ def main():
                        value_loss, action_loss))
 
             experiment.log_metrics({"mean reward": np.mean(episode_rewards),
-                                 "Value loss": value_loss, "Action Loss": action_loss,"Beta mean": np.array(beta_value_list).mean(),
+                                 "Value loss": value_loss, "Action Loss": action_loss,
+                                 "Beta loss": beta_loss,
+                                 "Beta mean": np.array(beta_value_list).mean(),
                                  "Beta std": np.array(beta_value_list).std()}, 
                                  step=j * args.num_steps * args.num_processes)
 
