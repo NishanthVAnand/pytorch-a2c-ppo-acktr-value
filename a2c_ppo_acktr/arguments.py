@@ -73,6 +73,7 @@ def get_args():
     parser.add_argument('--lr_beta', type=float, default=1e-4)
     parser.add_argument('--reg_beta', type=float, default=0.)
     parser.add_argument('--disable_log', type=bool, default=False)
+    parser.add_argument('--delib_center', type=float, default=0.)
     args = parser.parse_args()
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()

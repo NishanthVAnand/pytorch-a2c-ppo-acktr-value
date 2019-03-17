@@ -81,6 +81,7 @@ def main():
         agent = algo.A2C_ACKTR(actor_critic, args.value_loss_coef,
                                args.entropy_coef, lr=args.lr,
                                lr_beta=args.lr_beta, reg_beta=args.reg_beta,
+                               delib_center=args.delib_center,
                                eps=args.eps, alpha=args.alpha,
                                max_grad_norm=args.max_grad_norm)
     elif args.algo == 'ppo':
