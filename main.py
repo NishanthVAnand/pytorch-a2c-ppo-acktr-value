@@ -1,4 +1,4 @@
-from comet_ml import OfflineExperiment
+from comet_ml import OfflineExperiment, Experiment
 
 import copy
 import glob
@@ -29,9 +29,17 @@ if args.recurrent_policy:
     assert args.algo in ['a2c', 'ppo'], \
         'Recurrent policy is not implemented for ACKTR'
 
-experiment = OfflineExperiment(project_name="recurrent-value", workspace="nishanthvanand",
+if args.comet == "offline":
+    experiment = OfflineExperiment(project_name="recurrent-value", workspace="nishanthvanand",
     disabled=args.disable_log, offline_directory="../comet_offline",
     parse_args=False)
+elif args.comet == "online":
+    experiment = Experiment(api_key="tSACzCGFcetSBTapGBKETFARf",
+                        project_name="recurrent-value", workspace="nishanthvanand",
+                        disabled=args.disable_log,
+                        parse_args=False)
+else:
+    raise ValueError
 
 experiment.log_parameters(vars(args))
 
