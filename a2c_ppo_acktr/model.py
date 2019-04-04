@@ -13,13 +13,15 @@ class Flatten(nn.Module):
 
 
 class Policy(nn.Module):
-    def __init__(self, obs_shape, action_space, base=None, base_kwargs=None):
+    def __init__(self, obs_shape, action_space, base=None, base_kwargs=None, is_minigrid=False):
         super(Policy, self).__init__()
         if base_kwargs is None:
             base_kwargs = {}
         if base is None:
-            if len(obs_shape) == 3:
+            if len(obs_shape) == 3 and not(is_minigrid):
                 base = CNNBase
+            elif len(obs_shape) == 3 and is_minigrid:
+                base = CNN_minigrid
             elif len(obs_shape) == 1:
                 base = MLPBase
             else:
@@ -230,6 +232,51 @@ class CNNBase(NNBase):
 
     def forward(self, inputs, rnn_hxs, masks):
         x = self.main(inputs / 255.0)
+
+        if self.is_recurrent:
+            x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
+
+        if self.est_beta_value:
+            beta_value = self.beta_value_net(x)
+        else:
+            beta_value = torch.ones_like(masks)
+
+        return self.critic_linear(x), x, rnn_hxs, beta_value
+
+class CNN_minigrid(NNBase):
+    def __init__(self, num_inputs, recurrent=False, hidden_size=64, est_beta_value=False):
+        super(CNN_minigrid, self).__init__(recurrent, hidden_size, hidden_size)
+
+        self.est_beta_value = est_beta_value
+
+        init_ = lambda m: init(m,
+            nn.init.orthogonal_,
+            lambda x: nn.init.constant_(x, 0),
+            nn.init.calculate_gain('relu'))
+
+        self.main = nn.Sequential(
+            init_(nn.Conv2d(3, 16, (2, 2))),
+            nn.ReLU(),
+            init_(nn.Conv2d(16, 32, (2, 2))),
+            nn.ReLU(),
+            init_(nn.Conv2d(32, 64, (2, 2))),
+            nn.ReLU(),
+            Flatten(),
+            init_(nn.Linear(64*4*4, hidden_size))
+        )
+
+        init_ = lambda m: init(m,
+            nn.init.orthogonal_,
+            lambda x: nn.init.constant_(x, 0))
+
+        self.critic_linear = init_(nn.Linear(hidden_size, 1))
+
+        self.beta_value_net = nn.Sequential(init_(nn.Linear(hidden_size, 1)), nn.Sigmoid())
+
+        self.train()
+
+    def forward(self, inputs, rnn_hxs, masks):
+        x = self.main(inputs)
 
         if self.is_recurrent:
             x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)

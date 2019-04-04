@@ -78,11 +78,13 @@ def main():
         viz = Visdom(port=args.port)
         win = None
 
-    envs = make_vec_envs(args.env_name, args.seed, args.num_processes,
+    envs, is_minigrid = make_vec_envs(args.env_name, args.seed, args.num_processes,
                         args.gamma, args.log_dir, args.add_timestep, device, False, args.num_frame_stack)
 
     actor_critic = Policy(envs.observation_space.shape, envs.action_space,
-        base_kwargs={'recurrent': args.recurrent_policy, 'est_beta_value':args.est_beta_value})
+        base_kwargs={'recurrent': args.recurrent_policy, 'est_beta_value':args.est_beta_value},
+        is_minigrid=is_minigrid)
+
     actor_critic.to(device)
 
     if args.algo == 'a2c':

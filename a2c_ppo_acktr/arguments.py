@@ -75,7 +75,7 @@ def get_args():
     parser.add_argument('--disable_log', type=bool, default=False)
     parser.add_argument('--delib_center', type=float, default=0.)
     parser.add_argument('--comet', type=str, default="online")
-    parser.add_argument('--num-frame-stack', type=int, default=4)
+    parser.add_argument('--num-frame-stack', type=int, default=None)
     args = parser.parse_args()
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()
