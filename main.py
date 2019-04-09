@@ -267,10 +267,10 @@ def main():
             except IOError:
                 pass
 
-    with open(args.log_dir+"Rewards_"+str(args.env_name)+"_seed_"+str(args.seed)+"_est_beta_"+str(args.est_beta_value)+"_beta_reg_"+str(args.reg_beta)+".pkl", 'wb') as f:
+    with open(args.save_local_dir+"Rewards_"+str(args.env_name)+"_seed_"+str(args.seed)+"_est_beta_"+str(args.est_beta_value)+"_beta_reg_"+str(args.reg_beta)+".pkl", 'wb') as f:
         pickle.dump(all_rewards_local, f)
 
-    with open(args.log_dir+"Frames_"+str(args.env_name)+"_seed_"+str(args.seed)+"_est_beta_"+str(args.est_beta_value)+"_beta_reg_"+str(args.reg_beta)+".pkl", 'wb') as f:
+    with open(args.save_local_dir+"Frames_"+str(args.env_name)+"_seed_"+str(args.seed)+"_est_beta_"+str(args.est_beta_value)+"_beta_reg_"+str(args.reg_beta)+".pkl", 'wb') as f:
         pickle.dump(all_frame_local, f)
 
 if __name__ == "__main__":
