@@ -257,12 +257,14 @@ class CNN_minigrid(NNBase):
         self.main = nn.Sequential(
             init_(nn.Conv2d(3, 16, (2, 2))),
             nn.ReLU(),
+            nn.MaxPool2d((2, 2)),
             init_(nn.Conv2d(16, 32, (2, 2))),
             nn.ReLU(),
             init_(nn.Conv2d(32, 64, (2, 2))),
             nn.ReLU(),
             Flatten(),
-            init_(nn.Linear(64*4*4, hidden_size))
+            init_(nn.Linear(64, hidden_size)),
+            nn.Tanh()
         )
 
         init_ = lambda m: init(m,
