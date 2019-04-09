@@ -6,6 +6,8 @@ import os
 import time
 from collections import deque
 
+import pickle
+
 import gym
 import numpy as np
 import torch
@@ -112,6 +114,8 @@ def main():
     rollouts.to(device)
 
     episode_rewards = deque(maxlen=10)
+    all_rewards_local = deque()
+    all_frame_local = deque()
 
     start = time.time()
 
@@ -210,6 +214,9 @@ def main():
                                  "Beta std": np.array(beta_value_list).std()}, 
                                  step=j * args.num_steps * args.num_processes)
 
+            all_rewards_local.append(np.mean(episode_rewards))
+            all_frame_local.append(total_num_steps)
+
         if (args.eval_interval is not None
                 and len(episode_rewards) > 1
                 and j % args.eval_interval == 0):
@@ -260,6 +267,11 @@ def main():
             except IOError:
                 pass
 
+    with open(args.log_dir+"Rewards_"+str(args.env_name)+"_seed_"+str(args.seed)+"_est_beta_"+str(args.est_beta_value)+"_beta_reg_"+str(args.reg_beta)+".pkl", 'wb') as f:
+        pickle.dump(all_rewards_local, f)
+
+    with open(args.log_dir+"Frames_"+str(args.env_name)+"_seed_"+str(args.seed)+"_est_beta_"+str(args.est_beta_value)+"_beta_reg_"+str(args.reg_beta)+".pkl", 'wb') as f:
+        pickle.dump(all_frame_local, f)
 
 if __name__ == "__main__":
     main()
