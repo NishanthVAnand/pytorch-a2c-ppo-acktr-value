@@ -187,11 +187,8 @@ def main():
 
             save_model = [save_model,
                           getattr(get_vec_normalize(envs), 'ob_rms', None)]
-
-            if args.est_beta_value:
-                torch.save(save_model, os.path.join(save_path, args.env_name +"_seed_"+str(args.seed) + "_beta_est.pt"))
-            else:
-                torch.save(save_model, os.path.join(save_path, args.env_name +"_seed_"+str(args.seed) + "_no_beta.pt"))
+                
+            torch.save(save_model, os.path.join(save_path, args.env_name +"_seed_"+str(args.seed)+"_est_beta_"+str(args.est_beta_value)+"_beta_reg_"+str(args.reg_beta)+"_entropy_"+str(args.entropy_coef)+".pt"))
 
         total_num_steps = (j + 1) * args.num_processes * args.num_steps
 
