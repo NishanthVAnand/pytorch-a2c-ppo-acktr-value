@@ -29,7 +29,7 @@ args = parser.parse_args()
 
 args.det = not args.non_det
 
-env = make_vec_envs(args.env_name, args.seed + 1000, 1,
+env, is_minigrid  = make_vec_envs(args.env_name, args.seed + 1000, 1,
                             None, None, args.add_timestep, device='cpu',
                             allow_early_resets=False)
 
@@ -63,8 +63,8 @@ if args.env_name.find('Bullet') > -1:
 
 while True:
     with torch.no_grad():
-        value, action, _, recurrent_hidden_states = actor_critic.act(
-            obs, recurrent_hidden_states, masks, deterministic=args.det)
+        value, action, _, recurrent_hidden_states,_,_ = actor_critic.act(
+            obs, recurrent_hidden_states, masks,prev_value=None, deterministic=args.det)
 
     # Obser reward and next obs
     obs, reward, done, _ = env.step(action)
