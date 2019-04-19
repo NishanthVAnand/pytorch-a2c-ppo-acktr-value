@@ -50,10 +50,7 @@ class A2C_ACKTR():
         obs_shape = rollouts.obs.size()[2:]
         action_shape = rollouts.actions.size()[-1]
         num_steps, num_processes, _ = rollouts.rewards.size()
-        if eval_prev_rew is not None:
-            rewards = torch.cat((eval_prev_rew.unsqueeze(0), rollouts.rewards.squeeze(2)))
-        else:
-            rewards = torch.cat((torch.zeros(1, num_processes), rollouts.rewards.squeeze(2)))
+        rewards = torch.cat((eval_prev_rew.unsqueeze(0), rollouts.rewards.squeeze(2)))
 
         values, action_log_probs, dist_entropy, _ , eval_prev_value, betas = self.actor_critic.evaluate_actions(
             rollouts.obs[:-1],
