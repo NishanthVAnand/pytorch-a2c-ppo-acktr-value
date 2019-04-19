@@ -46,17 +46,22 @@ class A2C_ACKTR():
             self.optimizer = optim.RMSprop([{'params': self.param_list},
                  {'params': self.beta_value_list, 'lr': lr_beta}], lr, eps=eps, alpha=alpha)
 
-    def update(self, rollouts, eval_prev_value):
+    def update(self, rollouts, eval_prev_value, eval_prev_rew):
         obs_shape = rollouts.obs.size()[2:]
         action_shape = rollouts.actions.size()[-1]
         num_steps, num_processes, _ = rollouts.rewards.size()
+        if eval_prev_rew is not None:
+            rewards = torch.cat((eval_prev_rew.unsqueeze(0), rollouts.rewards.squeeze(2)))
+        else:
+            rewards = torch.cat((torch.zeros(1, num_processes), rollouts.rewards.squeeze(2)))
 
         values, action_log_probs, dist_entropy, _ , eval_prev_value, betas = self.actor_critic.evaluate_actions(
             rollouts.obs[:-1],
             rollouts.recurrent_hidden_states[0],
             rollouts.masks[:-1],
             rollouts.actions,
-            eval_prev_value=eval_prev_value)
+            eval_prev_value=eval_prev_value,
+            eval_prev_rew=rewards)
 
         values = values.view(num_steps, num_processes, 1)
         action_log_probs = action_log_probs.view(num_steps, num_processes, 1)
@@ -99,4 +104,4 @@ class A2C_ACKTR():
 
         self.optimizer.step()
 
-        return value_loss.item(), action_loss.item(), dist_entropy.item(), eval_prev_value, delib_loss.item()
+        return value_loss.item(), action_loss.item(), dist_entropy.item(), eval_prev_value, delib_loss.item(), rewards[-1,:]

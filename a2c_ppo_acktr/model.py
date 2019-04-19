@@ -13,7 +13,7 @@ class Flatten(nn.Module):
 
 
 class Policy(nn.Module):
-    def __init__(self, obs_shape, action_space, base=None, base_kwargs=None, is_minigrid=False):
+    def __init__(self, obs_shape, action_space, base=None, base_kwargs=None, is_minigrid=False, use_rew=False):
         super(Policy, self).__init__()
         if base_kwargs is None:
             base_kwargs = {}
@@ -28,6 +28,8 @@ class Policy(nn.Module):
                 raise NotImplementedError
 
         self.base = base(obs_shape[0], **base_kwargs)
+
+        self.use_rew = use_rew
 
         if action_space.__class__.__name__ == "Discrete":
             num_outputs = action_space.n
@@ -53,7 +55,7 @@ class Policy(nn.Module):
     def forward(self, inputs, rnn_hxs, masks):
         raise NotImplementedError
 
-    def act(self, inputs, rnn_hxs, masks, deterministic=False, prev_value=None):
+    def act(self, inputs, rnn_hxs, masks, deterministic=False, prev_value=None, prev_rew=None):
         value, actor_features, rnn_hxs, beta_value = self.base(inputs, rnn_hxs, masks)
         dist = self.dist(actor_features)
 
@@ -65,10 +67,12 @@ class Policy(nn.Module):
         action_log_probs = dist.log_probs(action)
         dist_entropy = dist.entropy().mean()
 
-        if prev_value is not None:
-            value = beta_value * value + (1 - beta_value) * prev_value
+        prev_value = masks * prev_value + (1 - masks) * value
 
-        prev_value = value * masks
+        if prev_value is not None:
+            if self.use_rew and prev_rew is not None:
+                prev_value = prev_value - prev_rew
+            value = beta_value * value + (1 - beta_value) * prev_value
 
         return value, action, action_log_probs, rnn_hxs, prev_value, beta_value
 
@@ -76,7 +80,7 @@ class Policy(nn.Module):
         value, _, _, _ = self.base(inputs, rnn_hxs, masks)
         return value
 
-    def evaluate_actions(self, inputs, rnn_hxs, masks, action, eval_prev_value=None):
+    def evaluate_actions(self, inputs, rnn_hxs, masks, action, eval_prev_value=None, eval_prev_rew=None):
         value_list = []
         action_log_probs = []
         dist_entropy = []
@@ -85,13 +89,16 @@ class Policy(nn.Module):
         for i in range(inputs.size()[0]):
             value, actor_features, _, beta_value = self.base(inputs[i,:,:], rnn_hxs, masks[i,:,:])
             
+            eval_prev_value = masks[i,:,:] * eval_prev_value + (1 - masks[i,:,:]) * value
+            prev_rew = eval_prev_rew[i,:].unsqueeze(1) * masks[i,:,:]
+
             if eval_prev_value is not None:
+                if self.use_rew and eval_prev_rew is not None:
+                    eval_prev_value = eval_prev_value - prev_rew
                 value = beta_value * value + (1 - beta_value) * eval_prev_value
 
             beta_list.append(beta_value)
             value_list.append(value)
-
-            eval_prev_value = value * masks[i,:,:]
 
             dist = self.dist(actor_features)
 
@@ -103,7 +110,7 @@ class Policy(nn.Module):
         v = torch.stack(value_list)
         beta_torch = torch.stack(beta_list)
 
-        return v, action_log_probs, dist_entropy, rnn_hxs, eval_prev_value, beta_torch
+        return v, action_log_probs, dist_entropy, rnn_hxs, eval_prev_value.detach(), beta_torch
 
 
 class NNBase(nn.Module):

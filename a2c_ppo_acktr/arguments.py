@@ -78,6 +78,7 @@ def get_args():
     parser.add_argument('--comet', type=str, default="online")
     parser.add_argument('--num-frame-stack', type=int, default=None)
     parser.add_argument('--save-local-dir', default='../results/')
+    parser.add_argument('--use-reward', type=bool, default=False)
     args = parser.parse_args()
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()

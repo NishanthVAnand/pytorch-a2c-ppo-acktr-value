@@ -85,7 +85,7 @@ def main():
 
     actor_critic = Policy(envs.observation_space.shape, envs.action_space,
         base_kwargs={'recurrent': args.recurrent_policy, 'est_beta_value':args.est_beta_value},
-        is_minigrid=is_minigrid)
+        is_minigrid=is_minigrid, use_rew=args.use_reward)
 
     actor_critic.to(device)
 
@@ -119,10 +119,13 @@ def main():
 
     start = time.time()
 
+    prev_value = 0
+    eval_prev_value = 0
+    prev_rew = None
+    eval_prev_rew = None
+    
     for j in range(num_updates):
         beta_value_list = []
-        prev_value = None
-        eval_prev_value = None
 
         if args.use_linear_lr_decay:
             # decrease learning rate linearly
@@ -142,7 +145,8 @@ def main():
                         rollouts.obs[step],
                         rollouts.recurrent_hidden_states[step],
                         rollouts.masks[step],
-                        prev_value=prev_value)
+                        prev_value=prev_value,
+                        prev_rew=prev_rew)
 
             # Obser reward and next obs
             obs, reward, done, infos = envs.step(action)
@@ -159,6 +163,9 @@ def main():
             # If done then clean the history of observations.
             masks = torch.FloatTensor([[0.0] if done_ else [1.0]
                                        for done_ in done])
+
+            prev_rew = reward * masks
+
             rollouts.insert(obs, recurrent_hidden_states, action, action_log_prob, value, reward, masks)
 
         with torch.no_grad():
@@ -168,7 +175,7 @@ def main():
 
         rollouts.compute_returns(next_value, args.use_gae, args.gamma, args.tau)
 
-        value_loss, action_loss, dist_entropy, eval_prev_value, beta_loss = agent.update(rollouts, eval_prev_value)
+        value_loss, action_loss, dist_entropy, eval_prev_value, beta_loss, eval_prev_rew = agent.update(rollouts, eval_prev_value, eval_prev_rew)
 
         rollouts.after_update()
 
