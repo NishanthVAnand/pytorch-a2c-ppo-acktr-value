@@ -119,10 +119,10 @@ def main():
 
     start = time.time()
 
-    prev_value = torch.zeros(args.num_processes).to(device)
-    eval_prev_value = torch.zeros(args.num_processes).to(device)
-    prev_rew = None
-    eval_prev_rew = None
+    prev_value = 0
+    eval_prev_value = 0
+    prev_rew = torch.zeros(args.num_processes).to(device)
+    eval_prev_rew = torch.zeros(args.num_processes).to(device)
 
     for j in range(num_updates):
         beta_value_list = []
