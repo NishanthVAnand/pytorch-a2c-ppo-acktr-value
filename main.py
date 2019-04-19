@@ -195,7 +195,7 @@ def main():
             save_model = [save_model,
                           getattr(get_vec_normalize(envs), 'ob_rms', None)]
                 
-            torch.save(save_model, os.path.join(save_path, args.env_name +"_seed_"+str(args.seed)+"_est_beta_"+str(args.est_beta_value)+"_lr_beta_"+str(args.lr_beta)+"_beta_reg_"+str(args.reg_beta)+"_entropy_"+str(args.entropy_coef)+".pt"))
+            torch.save(save_model, os.path.join(save_path, args.env_name +"_seed_"+str(args.seed)+"_est_beta_"+str(args.est_beta_value)+"_lr_beta_"+str(args.lr_beta)+"_beta_reg_"+str(args.reg_beta)+"_entropy_"+str(args.entropy_coef)+"_steps_"+str(args.num_steps)+".pt"))
 
         total_num_steps = (j + 1) * args.num_processes * args.num_steps
 
@@ -271,10 +271,10 @@ def main():
             except IOError:
                 pass
 
-    with open(args.save_local_dir+"Rewards_"+str(args.env_name)+"_seed_"+str(args.seed)+"_est_beta_"+str(args.est_beta_value)+"_lr_beta_"+str(args.lr_beta)+"_beta_reg_"+str(args.reg_beta)+"_entropy_"+str(args.entropy_coef)+".pkl", 'wb') as f:
+    with open(args.save_local_dir+"Rewards_"+str(args.env_name)+"_seed_"+str(args.seed)+"_est_beta_"+str(args.est_beta_value)+"_lr_beta_"+str(args.lr_beta)+"_beta_reg_"+str(args.reg_beta)+"_entropy_"+str(args.entropy_coef)+"_steps_"+str(args.num_steps)+".pkl", 'wb') as f:
         pickle.dump(all_rewards_local, f)
 
-    with open(args.save_local_dir+"Frames_"+str(args.env_name)+"_seed_"+str(args.seed)+"_est_beta_"+str(args.est_beta_value)+"_lr_beta_"+str(args.lr_beta)+"_beta_reg_"+str(args.reg_beta)+"_entropy_"+str(args.entropy_coef)+".pkl", 'wb') as f:
+    with open(args.save_local_dir+"Frames_"+str(args.env_name)+"_seed_"+str(args.seed)+"_est_beta_"+str(args.est_beta_value)+"_lr_beta_"+str(args.lr_beta)+"_beta_reg_"+str(args.reg_beta)+"_entropy_"+str(args.entropy_coef)+"_steps_"+str(args.num_steps)+".pkl", 'wb') as f:
         pickle.dump(all_frame_local, f)
 
 if __name__ == "__main__":
