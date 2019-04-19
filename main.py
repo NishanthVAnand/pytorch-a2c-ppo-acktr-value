@@ -119,8 +119,8 @@ def main():
 
     start = time.time()
 
-    prev_value = torch.zeros(1, args.num_processes).to(device)
-    eval_prev_value = torch.zeros(1, args.num_processes).to(device)
+    prev_value = torch.zeros(args.num_processes).to(device)
+    eval_prev_value = torch.zeros(args.num_processes).to(device)
     prev_rew = None
     eval_prev_rew = None
 
