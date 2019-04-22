@@ -110,12 +110,16 @@ def main():
                         actor_critic.recurrent_hidden_state_size)
 
     obs = envs.reset()
+    obs = obs + torch.randn_like(obs) * args.noise_obs
     rollouts.obs[0].copy_(obs)
     rollouts.to(device)
 
     episode_rewards = deque(maxlen=10)
+    
     all_rewards_local = deque()
     all_frame_local = deque()
+    all_beta_mean_local = deque()
+    all_beta_std_local = deque()
 
     start = time.time()
 
@@ -150,6 +154,7 @@ def main():
 
             # Obser reward and next obs
             obs, reward, done, infos = envs.step(action)
+            obs = obs + torch.randn_like(obs) * args.noise_obs
 
             if not args.cuda:
                 beta_value_list.append(beta_value.numpy())
@@ -195,7 +200,7 @@ def main():
             save_model = [save_model,
                           getattr(get_vec_normalize(envs), 'ob_rms', None)]
                 
-            torch.save(save_model, os.path.join(save_path, args.env_name +"_seed_"+str(args.seed)+"_est_beta_"+str(args.est_beta_value)+"_lr_beta_"+str(args.lr_beta)+"_beta_reg_"+str(args.reg_beta)+"_entropy_"+str(args.entropy_coef)+"_steps_"+str(args.num_steps)+".pt"))
+            torch.save(save_model, os.path.join(save_path, args.env_name +"_seed_"+str(args.seed)+"_est_beta_"+str(args.est_beta_value)+"_lr_beta_"+str(args.lr_beta)+"_beta_reg_"+str(args.reg_beta)+"_entropy_"+str(args.entropy_coef)+"_steps_"+str(args.num_steps)+"_noise_obs_"+str(args.noise_obs)+".pt"))
 
         total_num_steps = (j + 1) * args.num_processes * args.num_steps
 
@@ -220,6 +225,8 @@ def main():
 
             all_rewards_local.append(np.mean(episode_rewards))
             all_frame_local.append(total_num_steps)
+            all_beta_mean_local.append(np.array(beta_value_list).mean())
+            all_beta_std_local.append(np.array(beta_value_list).std())
 
         if (args.eval_interval is not None
                 and len(episode_rewards) > 1
@@ -271,11 +278,17 @@ def main():
             except IOError:
                 pass
 
-    with open(args.save_local_dir+"Rewards_"+str(args.env_name)+"_seed_"+str(args.seed)+"_est_beta_"+str(args.est_beta_value)+"_lr_beta_"+str(args.lr_beta)+"_beta_reg_"+str(args.reg_beta)+"_entropy_"+str(args.entropy_coef)+"_steps_"+str(args.num_steps)+".pkl", 'wb') as f:
+    with open(args.save_local_dir+"Rewards_"+str(args.env_name)+"_seed_"+str(args.seed)+"_est_beta_"+str(args.est_beta_value)+"_lr_beta_"+str(args.lr_beta)+"_beta_reg_"+str(args.reg_beta)+"_entropy_"+str(args.entropy_coef)+"_steps_"+str(args.num_steps)+"_noise_obs_"+str(args.noise_obs)+".pkl", 'wb') as f:
         pickle.dump(all_rewards_local, f)
 
-    with open(args.save_local_dir+"Frames_"+str(args.env_name)+"_seed_"+str(args.seed)+"_est_beta_"+str(args.est_beta_value)+"_lr_beta_"+str(args.lr_beta)+"_beta_reg_"+str(args.reg_beta)+"_entropy_"+str(args.entropy_coef)+"_steps_"+str(args.num_steps)+".pkl", 'wb') as f:
+    with open(args.save_local_dir+"Frames_"+str(args.env_name)+"_seed_"+str(args.seed)+"_est_beta_"+str(args.est_beta_value)+"_lr_beta_"+str(args.lr_beta)+"_beta_reg_"+str(args.reg_beta)+"_entropy_"+str(args.entropy_coef)+"_steps_"+str(args.num_steps)+"_noise_obs_"+str(args.noise_obs)+".pkl", 'wb') as f:
         pickle.dump(all_frame_local, f)
+
+    with open(args.save_local_dir+"beta_mean_"+str(args.env_name)+"_seed_"+str(args.seed)+"_est_beta_"+str(args.est_beta_value)+"_lr_beta_"+str(args.lr_beta)+"_beta_reg_"+str(args.reg_beta)+"_entropy_"+str(args.entropy_coef)+"_steps_"+str(args.num_steps)+"_noise_obs_"+str(args.noise_obs)+".pkl", 'wb') as f:
+        pickle.dump(all_beta_mean_local, f)
+
+    with open(args.save_local_dir+"beta_std_"+str(args.env_name)+"_seed_"+str(args.seed)+"_est_beta_"+str(args.est_beta_value)+"_lr_beta_"+str(args.lr_beta)+"_beta_reg_"+str(args.reg_beta)+"_entropy_"+str(args.entropy_coef)+"_steps_"+str(args.num_steps)+"_noise_obs_"+str(args.noise_obs)+".pkl", 'wb') as f:
+        pickle.dump(all_beta_std_local, f)
 
 if __name__ == "__main__":
     main()
