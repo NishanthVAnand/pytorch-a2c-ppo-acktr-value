@@ -89,19 +89,17 @@ class Policy(nn.Module):
         for i in range(inputs.size()[0]):
             value, actor_features, _, beta_value = self.base(inputs[i,:,:], rnn_hxs, masks[i,:,:])
             
+            eval_prev_value = beta_value * value + (1 - beta_value) * eval_prev_value
             eval_prev_value = masks[i,:,:] * eval_prev_value + (1 - masks[i,:,:]) * value
             prev_rew = eval_prev_rew[i,:].unsqueeze(1) * masks[i,:,:]
 
             if eval_prev_value is not None:
                 if self.use_rew and eval_prev_rew is not None:
                     eval_prev_value = eval_prev_value - prev_rew
-                value = beta_value * value + (1 - beta_value) * eval_prev_value
 
             beta_list.append(beta_value)
-            value_list.append(value)
-
+            value_list.append(eval_prev_value)
             dist = self.dist(actor_features)
-
             action_log_probs.append(dist.log_probs(action[i,:,:]))
             dist_entropy.append(dist.entropy())
 
@@ -326,10 +324,9 @@ class MLPBase(NNBase):
             nn.Tanh()
         )
 
-        self.beta_value_net = nn.Sequential(init_(nn.Linear(hidden_size, 1)), nn.Sigmoid())
-
         self.critic_linear = init_(nn.Linear(hidden_size, 1))
 
+        self.beta_value_net = nn.Sequential(init_(nn.Linear(hidden_size, 1)), nn.Sigmoid())
         #self.critic_linear = nn.Sequential(init_(nn.Linear(hidden_size, 1)), nn.Sigmoid())
 
         self.train()
